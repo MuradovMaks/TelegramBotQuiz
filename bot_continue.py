@@ -1,3 +1,5 @@
+
+
 import aiosqlite
 import asyncio
 import logging
@@ -32,18 +34,24 @@ def generate_options_keyboard(answer_options, right):
 
 @quiz_bot.dp.message(F.text == 'Результат')
 async def test_result(message: types.Message):
-    i = 1
-    correct_answer = [q for q in user_ans.keys() if user_ans.get(q, q) == 'right']
-    formatted_answers = "\n".join(f"{i + ind}-✅{answer}" for ind, answer in enumerate(correct_answer))
-    wrong_answer = [q for q in user_ans.keys() if user_ans.get(q, q) == 'wrong']
-    i += len(correct_answer)
-    formatted_answers_wrong = "\n".join(f"{ind + i}-❌{answer}" for ind, answer in enumerate(wrong_answer))
+    num_q = []
+    answer = []
+    result = []
+    for i in user_ans:
+        num_q.append(i)
+        answer.append(list(user_ans[i])[0])
+        result.append(list(user_ans[i].values())[0])
+    correct_answer = [(index + 1, ans) for index, (ans, status) in enumerate(zip(answer, result)) if status == 'right']
+    formatted_answers = "\n\n".join(f"{index} ✅ :{ans}" for index, ans in correct_answer)
+
+    wrong_answer = [(index + 1, ans) for index, (ans, status) in enumerate(zip(answer, result)) if status == 'wrong']
+    formatted_answers_wrong = "\n\n".join(f"{index} ❌:{ans}" for index, ans in wrong_answer)
     content = as_list(
         as_marked_section(Bold("Success:"), formatted_answers, marker=""),
         as_marked_section(Bold("Failed:"), formatted_answers_wrong, marker=""),
         as_marked_section(
             Bold("Summary:"),
-            as_key_value("Total", (len(user_ans))),
+            as_key_value("Total", (len(num_q))),
             as_key_value("Success", (len(correct_answer))),
             as_key_value("Failed", (len(wrong_answer))),
             marker="  ",
@@ -58,11 +66,11 @@ async def handle_answer(callback: types.CallbackQuery):
     correct_option = quiz_data[current_question_index]['correct_option']
     user_answer, result = callback.data.split(':')
     if result == 'right':
-        user_ans[user_answer] = result
+        user_ans[current_question_index] = {user_answer:result}
         response_text = f"Верно! Вы выбрали: {user_answer}"
         await callback.message.answer(response_text)
     else:
-        user_ans[user_answer] = result
+        user_ans[current_question_index] = {user_answer:result}
         response_text = f"Неправильно! Вы выбрали: {user_answer}"
         await callback.message.answer(response_text)
         await callback.message.answer(
